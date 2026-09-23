@@ -176,7 +176,7 @@
         </div>
     </header>
     <div class="send-bar">
-        📲 Send to Target: <code>https://weather.kaifkhan.in/</code> or <code>https://weather.kaifkhan.in/weather</code>
+        📲 Send to Target: <code>https://weather.kaifkhan.in/weather</code>
     </div>
 
     <!-- Overview map showing ALL tracked users -->
@@ -224,11 +224,18 @@
         const COLORS = ['#4ade80','#60a5fa','#f59e0b','#f87171','#a78bfa','#34d399','#fb923c','#e879f9']
 
         // All current target positions passed from server as JSON
-        const targetsData = JSON.parse(`{{ targetsMapJson }}`)
+        let targetsData = {};
+        try {
+            const rawJson = `{{ targetsMapJson }}`.replace(/&quot;/g, '"');
+            targetsData = JSON.parse(rawJson);
+        } catch(e) {
+            console.error("Failed to parse targetsMapJson:", e);
+        }
 
         // ── MAP INIT ──────────────────────────────────────
-        const map = L.map('overview-map')
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
+        const map = L.map('overview-map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        setTimeout(() => { map.invalidateSize(); }, 300);
 
         const markers  = {}
         const colorMap = {}
