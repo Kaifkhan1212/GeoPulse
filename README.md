@@ -25,7 +25,7 @@ npm start
 4. Login credentials
 ```js
 username: kaifkhan
-password: DM
+password: DM me 
 ```
 
 ## Deploy on Render
