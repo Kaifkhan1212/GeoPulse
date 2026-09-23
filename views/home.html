@@ -69,6 +69,24 @@
         }
         .theme-toggle:hover { background: var(--bg-card-hover); }
 
+        .logout-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
         .send-bar {
             background: var(--bg-bar);
             padding: 0.5rem 1.5rem;
@@ -150,12 +168,15 @@
             <h1>Geo<span>Pulse</span></h1>
             <a href="https://github.com/Kaifkhan1212" target="_blank">Owned by Kaif Khan</a>
         </div>
-        <button class="theme-toggle" id="theme-btn">
-            <span id="theme-icon">☀️</span> Light Mode
-        </button>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <button class="theme-toggle" id="theme-btn">
+                <span id="theme-icon">☀️</span> Light Mode
+            </button>
+            <a href="/logout" class="logout-btn" title="Log out from GeoPulse">🚪 Logout</a>
+        </div>
     </header>
     <div class="send-bar">
-        📲 Send to Target: <code>https://weather.kaifkhan.in/weather</code>
+        📲 Send to Target: <code>https://weather.kaifkhan.in/</code> or <code>https://weather.kaifkhan.in/weather</code>
     </div>
 
     <!-- Overview map showing ALL tracked users -->
