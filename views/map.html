@@ -1,77 +1,425 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Map</title>
+    <title>Live Map - GeoPulse</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; box-sizing: border-box; }
+
+        :root {
+            --bg-base: #0f0f1a;
+            --bg-header: linear-gradient(90deg, #1a1a2e, #16213e);
+            --bg-panel: #13131f;
+            --bg-sidebar: #1a1a2e;
+            --text-main: #fff;
+            --text-muted: #aaa;
+            --text-muted-dark: #666;
+            --border-color: #ffffff15;
+            --accent: #4ade80;
+        }
+
+        body.light-theme {
+            --bg-base: #f1f5f9;
+            --bg-header: linear-gradient(90deg, #ffffff, #f8fafc);
+            --bg-panel: #ffffff;
+            --bg-sidebar: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-muted-dark: #334155;
+            --border-color: #cbd5e1;
+            --accent: #16a34a;
         }
 
         body {
             display: flex;
             flex-direction: column;
             height: 100vh;
-            background: #000;
-            color: aliceblue;
+            background: var(--bg-base);
+            color: var(--text-main);
+            transition: background 0.3s, color 0.3s;
+            overflow: hidden;
         }
 
-        h4 {
-            padding: .5rem;
+        header {
+            background: var(--bg-header);
+            padding: 0.55rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        header h4 { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
+        header h4 span { color: var(--accent); font-weight: 700; }
+        .header-controls { display: flex; align-items: center; gap: 0.5rem; }
+        
+        .theme-toggle, .sidebar-toggle {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.3rem 0.6rem;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: background 0.2s;
+        }
+        .theme-toggle:hover, .sidebar-toggle:hover { background: var(--border-color); }
 
+        .info-panel {
+            background: var(--bg-panel);
+            padding: 0.5rem 1rem;
+            display: flex;
+            gap: 1.2rem;
+            align-items: center;
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .info-item { display: flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+        .info-item .lbl { color: var(--text-muted-dark); }
+        .info-item .val { color: var(--accent); font-weight: 600; }
+
+        .badge {
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .badge.inside  { background: #16a34a; color: #fff; }
+        .badge.outside { background: #dc2626; color: #fff; }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
         }
 
-        #map {
-            height: 100%;
-            width: 100%;
+        #map { flex: 1; height: 100%; z-index: 1; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+        .sidebar-header {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-sidebar {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; display: none;
+        }
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .history-item {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.6rem;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .history-item .dot {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+        }
+        .history-item .coords { color: var(--text-main); font-family: monospace; }
+        .history-item .index { color: var(--text-muted-dark); font-size: 0.7rem; margin-left: auto; }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                top: 0; right: 0; bottom: 0;
+                transform: translateX(100%);
+                box-shadow: -4px 0 15px rgba(0,0,0,0.2);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .close-sidebar { display: block; }
+            .info-panel { gap: 0.8rem; }
+        }
+
+        /* Alert banner */
+        .alert-banner {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f59e0b;
+            color: #000;
+            padding: 0.6rem 1.6rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: none;
+        }
+        .alert-banner.show {
+            display: block;
+            animation: popIn 0.3s ease;
+        }
+        @keyframes popIn {
+            0%   { transform: translateX(-50%) scale(0.85); opacity: 0; }
+            100% { transform: translateX(-50%) scale(1);    opacity: 1; }
         }
     </style>
 </head>
-
 <body>
-    <h4>ID: <span id="display-id"></span></h4>
-    <div id="map"></div>
+    <header>
+        <div class="header-left">
+            <h4>📍 Tracking: <span id="display-id"></span></h4>
+        </div>
+        <div class="header-controls">
+            <button class="theme-toggle" id="theme-btn"><span id="theme-icon">☀️</span></button>
+            <button class="sidebar-toggle" id="sidebar-toggle-btn">📜 History</button>
+        </div>
+    </header>
 
+    <div class="info-panel">
+        <div class="info-item">
+            <span class="lbl">📌 Coords:</span>
+            <span class="val" id="coords-display">—</span>
+        </div>
+        <div class="info-item">
+            <span class="lbl">🏠 Dist:</span>
+            <span class="val" id="distance-display">—</span>
+        </div>
+        <div class="info-item">
+            <span class="lbl">🚧 Zone:</span>
+            <span class="badge outside" id="geofence-badge">Checking…</span>
+        </div>
+        <div class="info-item">
+            <span class="lbl">🛤️ Points:</span>
+            <span class="val" id="points-display">0</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="map"></div>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                Location History
+                <button class="close-sidebar" id="close-sidebar-btn">&times;</button>
+            </div>
+            <div class="history-list" id="history-list">
+                <!-- Items populated via JS -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert-banner" id="alert-banner"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.1/client-dist/socket.io.min.js"></script>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        const displayId = document.querySelector("#display-id")
-        const id = new URLSearchParams(location.search).get("id")
-        const latLng = JSON.parse(`{{ data }}`)
-        const map = L.map('map').setView(latLng, 12)
+        // ── THEME TOGGLE ──────────────────────────────────
+        const themeBtn = document.getElementById('theme-btn');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-theme');
+            themeIcon.textContent = '🌙';
+        }
+
+        themeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+            const isLight = document.body.classList.contains('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            themeIcon.textContent = isLight ? '🌙' : '☀️';
+        });
+
+        // ── SIDEBAR TOGGLE ────────────────────────────────
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('sidebar-toggle-btn').addEventListener('click', () => sidebar.classList.toggle('open'));
+        document.getElementById('close-sidebar-btn').addEventListener('click', () => sidebar.classList.remove('open'));
+
+        // ── CONFIG ────────────────────────────────────────
+        const HOME_LAT = 19.0225
+        const HOME_LNG = 73.0351
+        const GEOFENCE_RADIUS = 300
+
+        const displayId     = document.getElementById("display-id")
+        const coordsDisplay = document.getElementById("coords-display")
+        const distDisplay   = document.getElementById("distance-display")
+        const geofenceBadge = document.getElementById("geofence-badge")
+        const pointsDisplay = document.getElementById("points-display")
+        const alertBanner   = document.getElementById("alert-banner")
+        const historyList   = document.getElementById("history-list")
+
+        const id      = new URLSearchParams(location.search).get("id")
+        const latLng  = JSON.parse(`{{ data }}`)
+        const history = JSON.parse(`{{ historyJson }}`)
+
+        // ── HISTORY LIST RENDER ───────────────────────────
+        let historyCount = 0;
+        function addHistoryItem(lat, lng, prepend = false) {
+            historyCount++;
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.innerHTML = `
+                <div class="dot"></div>
+                <div class="coords">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                <div class="index">#${historyCount}</div>
+            `;
+            if (prepend) {
+                historyList.prepend(div);
+            } else {
+                historyList.appendChild(div);
+            }
+        }
+        
+        // Populate initial history
+        history.forEach(pt => addHistoryItem(pt[0], pt[1]));
+
+        // ── MAP SETUP ──────────────────────────────────────
+        const map = L.map('map').setView(latLng, 18)
+        
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
+        const satellite = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 19 })
+        
+        osm.addTo(map)
+        
+        L.control.layers({
+            "🗺️ Standard Map": osm,
+            "🛰️ Satellite View": satellite
+        }, null, { position: 'bottomleft' }).addTo(map)
+
         const marker = L.marker(latLng).addTo(map)
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
+        const trailPts = history.length > 0 ? history : [latLng]
+        const trail = L.polyline(trailPts, {
+            color: '#4ade80', weight: 3, opacity: 0.85
         }).addTo(map)
 
-        const socket = io("", {
-            secure: true,
-            path: "/socket.io",
-            transports: ['websocket']
+        const homeIcon = L.divIcon({
+            html: '<div style="font-size:20px;line-height:1">🏠</div>',
+            className: '', iconSize: [24, 24], iconAnchor: [12, 20]
         })
+        L.marker([HOME_LAT, HOME_LNG], { icon: homeIcon }).addTo(map).bindPopup('<b>Home Point</b>')
 
+        L.circle([HOME_LAT, HOME_LNG], {
+            radius: GEOFENCE_RADIUS, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.07, dashArray: '6 4', weight: 2
+        }).addTo(map)
+
+        // ── REVERSE GEOCODING & PHOTOS ──────────────────────────────
+        async function updateAddress(lat, lng) {
+            try {
+                // 1. Get Address
+                const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                const data = await res.json()
+                
+                // 2. Get Nearby Photo (Free Wikipedia API)
+                let photoHtml = '';
+                try {
+                    const wikiRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${lat}|${lng}&ggsradius=1000&prop=pageimages&pithumbsize=400&format=json&origin=*`)
+                    const wikiData = await wikiRes.json()
+                    if (wikiData.query && wikiData.query.pages) {
+                        const pages = Object.values(wikiData.query.pages)
+                        const pageWithImg = pages.find(p => p.thumbnail)
+                        if (pageWithImg) {
+                            photoHtml = `<img src="${pageWithImg.thumbnail.source}" style="width:100%; border-radius:8px; margin-top:10px; display:block; box-shadow:0 2px 8px rgba(0,0,0,0.2);" alt="${pageWithImg.title}">
+                                         <div style="font-size:0.75rem; color:#666; text-align:center; margin-top:5px; font-weight:500;">📷 Near: ${pageWithImg.title}</div>`
+                        }
+                    }
+                } catch(e) { console.error("Wiki img error", e) }
+
+                if (data && data.display_name) {
+                    marker.bindPopup(`
+                        <div style="min-width: 200px; max-width: 260px; font-family: 'Segoe UI', sans-serif;">
+                            <div style="font-size:0.85rem; line-height:1.4;">
+                                <b style="color:#000; font-size:0.95rem;">Exact Location:</b><br>
+                                <span style="color:#444;">${data.display_name}</span>
+                            </div>
+                            ${photoHtml}
+                        </div>
+                    `).openPopup()
+                }
+            } catch (e) { console.error(e) }
+        }
+
+        // ── HAVERSINE DISTANCE ─────────────────────────────
+        function haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371
+            const dLat = (lat2 - lat1) * Math.PI / 180
+            const dLng = (lng2 - lng1) * Math.PI / 180
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        }
+
+        // ── INFO PANEL & GEOFENCE ──────────────────────────
+        let wasInside = null
+
+        function updatePanel(lat, lng) {
+            coordsDisplay.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+            const distKm = haversine(lat, lng, HOME_LAT, HOME_LNG)
+            const distM  = distKm * 1000
+            distDisplay.textContent = distM < 1000 ? `${distM.toFixed(0)} m` : `${distKm.toFixed(2)} km`
+
+            const inside = distM <= GEOFENCE_RADIUS
+            geofenceBadge.textContent = inside ? '✅ Inside Zone' : '🔴 Outside Zone'
+            geofenceBadge.className   = `badge ${inside ? 'inside' : 'outside'}`
+
+            if (wasInside !== null && wasInside !== inside) {
+                showAlert(inside ? '📍 Entered the geofence zone!' : '🚨 Left the geofence zone!')
+            }
+            wasInside = inside
+            pointsDisplay.textContent = trail.getLatLngs().length
+        }
+
+        function showAlert(msg) {
+            alertBanner.textContent = msg
+            alertBanner.classList.add('show')
+            setTimeout(() => alertBanner.classList.remove('show'), 3500)
+        }
+
+        // ── INITIAL RENDER ─────────────────────────────────
         displayId.innerHTML = id
-        // on update
+        updatePanel(latLng[0], latLng[1])
+        updateAddress(latLng[0], latLng[1])
+
+        // ── SOCKET.IO ─────────────────────────────────────
+        const socket = io("", { secure: true, path: "/socket.io", transports: ['websocket'] })
+
         socket.on("map-data", data => {
             if (data.id == id) {
-                displayId.innerHTML = `${id} - updating`
+                displayId.innerHTML = `${id} — updating`
                 marker.setLatLng([data.lat, data.lng])
-                map.setView([data.lat, data.lng])
-
-                setTimeout(() => {
-                    displayId.innerHTML = id
-                }, 2500)
+                map.setView([data.lat, data.lng], 18)
+                trail.addLatLng([data.lat, data.lng])
+                updatePanel(data.lat, data.lng)
+                updateAddress(data.lat, data.lng)
+                addHistoryItem(data.lat, data.lng, true) // Add to top of sidebar list
+                setTimeout(() => { displayId.innerHTML = id }, 2500)
             }
         })
     </script>
 </body>
-
 </html>
