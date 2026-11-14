@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoPulse - Admin Portal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', -apple-system, sans-serif; }
+
+        body {
+            background: #0a0a14 radial-gradient(ellipse at top, #1a1a3a 0%, #0a0a14 70%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .login-card {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2.2rem 2rem;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(74, 222, 128, 0.05);
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 1.8rem;
+        }
+
+        .brand h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #fff;
+        }
+
+        .brand h1 span {
+            color: #4ade80;
+        }
+
+        .brand p {
+            color: #888;
+            font-size: 0.82rem;
+            margin-top: 0.3rem;
+            letter-spacing: 0.02em;
+        }
+
+        .field {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #aaa;
+            margin-bottom: 0.4rem;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: #121222;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #4ade80;
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.25);
+            background: #16162a;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 0.8rem;
+            margin-top: 0.6rem;
+            background: #4ade80;
+            border: none;
+            border-radius: 10px;
+            color: #0b2e15;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(74, 222, 128, 0.3);
+        }
+
+        .submit-btn:hover {
+            background: #22c55e;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(74, 222, 128, 0.45);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: #555;
+        }
+
+        .footer-note a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        .footer-note a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand">
+            <h1>Geo<span>Pulse</span></h1>
+            <p>🔒 Admin Console & Live Monitoring</p>
+        </div>
+
+        <form action="/login" method="post">
+            <div class="field">
+                <label for="username">Admin Username</label>
+                <div class="input-group">
+                    <input type="text" id="username" name="username" placeholder="Enter username" required autofocus autocomplete="username">
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="password">Password</label>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Sign In to Dashboard →</button>
+        </form>
+
+        <div class="footer-note">
+            <span>GeoPulse System • <a href="https://github.com/Kaifkhan1212" target="_blank">Kaif Khan</a></span>
+        </div>
+    </div>
+</body>
+</html>
